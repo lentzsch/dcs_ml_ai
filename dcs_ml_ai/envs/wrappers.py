@@ -2,8 +2,8 @@
 import gymnasium as gym
 
 class BasicEnvWrapper(gym.Wrapper):
-    def __init__(self, env_name: str, **kwargs):
-        env = gym.make(env_name, **kwargs)
+    def __init__(self, env_name: str, render_mode: str = "rgb_array", **kwargs):
+        env = gym.make(env_name, render_mode=render_mode, **kwargs)
         super().__init__(env)
 
     def reset(self, **kwargs):
