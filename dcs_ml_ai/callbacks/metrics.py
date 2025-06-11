@@ -57,31 +57,41 @@ class CustomMetricCallback(BaseCallback):
     def _on_step(self) -> bool:
         """
         Called at each step during training.
-        
-        TODO: Implement actual metric collection:
-        - Get thrust values from env.get_attr('thrust')
-        - Calculate fuel efficiency from state/action data
-        - Analyze landing behavior from episode data
-        - Add per-step metrics (e.g., every 100 steps)
+        Collects real metrics from the environment when an episode ends.
         """
         self.total_steps += 1
         
         # Check if any environment in the vector has completed an episode
         if any(self.locals.get("dones", [])):
-            # Example of how metrics would be collected
-            # thrust = self.training_env.get_attr('thrust')[0]
-            # fuel = self.training_env.get_attr('fuel')[0]
-            # landing = self.training_env.get_attr('landing_status')[0]
+            try:
+                # Get thrust data
+                thrust = self.training_env.get_attr("thrust")[0]
+                if thrust is not None:
+                    self.metrics['thrust_usage'].append(float(thrust))
+                    self.logger.record(f"custom/thrust_usage/episode", float(thrust))
+            except (AttributeError, IndexError) as e:
+                if self.verbose > 0:
+                    print(f"Warning: Could not get thrust data: {e}")
             
-            # For now, just log dummy data
-            self.metrics['thrust_usage'].append(np.random.random())
-            self.metrics['fuel_efficiency'].append(np.random.random())
-            self.metrics['landing_quality'].append(np.random.random())
+            try:
+                # Get fuel efficiency data
+                fuel = self.training_env.get_attr("fuel")[0]
+                if fuel is not None:
+                    self.metrics['fuel_efficiency'].append(float(fuel))
+                    self.logger.record(f"custom/fuel_efficiency/episode", float(fuel))
+            except (AttributeError, IndexError) as e:
+                if self.verbose > 0:
+                    print(f"Warning: Could not get fuel data: {e}")
             
-            # Log individual episode metrics to tensorboard
-            for metric_name, values in self.metrics.items():
-                if values:  # Only log if we have values
-                    self.logger.record(f"custom/{metric_name}/episode", values[-1])
+            try:
+                # Get landing quality data
+                landing_status = self.training_env.get_attr("landing_status")[0]
+                if landing_status is not None:
+                    self.metrics['landing_quality'].append(float(landing_status))
+                    self.logger.record(f"custom/landing_quality/episode", float(landing_status))
+            except (AttributeError, IndexError) as e:
+                if self.verbose > 0:
+                    print(f"Warning: Could not get landing status data: {e}")
         
         return True
 
@@ -90,20 +100,27 @@ class CustomMetricCallback(BaseCallback):
         Called at the end of each rollout.
         Aggregates metrics and logs summary statistics to TensorBoard.
         """
-        # Calculate and log aggregate statistics
+        # Calculate and log aggregate statistics for each metric
         for metric_name, values in self.metrics.items():
             if values:  # Only process if we have values
-                # Calculate statistics
-                mean_val = np.mean(values)
-                std_val = np.std(values)
-                min_val = np.min(values)
-                max_val = np.max(values)
+                # Convert to numpy array for efficient calculation
+                values_array = np.array(values)
                 
-                # Log to tensorboard
-                self.logger.record(f"custom/{metric_name}/mean", mean_val)
-                self.logger.record(f"custom/{metric_name}/std", std_val)
-                self.logger.record(f"custom/{metric_name}/min", min_val)
-                self.logger.record(f"custom/{metric_name}/max", max_val)
+                # Calculate statistics
+                mean_val = np.mean(values_array)
+                std_val = np.std(values_array)
+                min_val = np.min(values_array)
+                max_val = np.max(values_array)
+                
+                # Log to tensorboard using record_mean for better aggregation
+                self.logger.record_mean(f"custom/{metric_name}/mean", mean_val)
+                self.logger.record_mean(f"custom/{metric_name}/std", std_val)
+                self.logger.record_mean(f"custom/{metric_name}/min", min_val)
+                self.logger.record_mean(f"custom/{metric_name}/max", max_val)
+                
+                if self.verbose > 1:
+                    print(f"{metric_name} stats - Mean: {mean_val:.3f}, Std: {std_val:.3f}, "
+                          f"Min: {min_val:.3f}, Max: {max_val:.3f}")
         
         # Reset metrics for next rollout
         for key in self.metrics:
