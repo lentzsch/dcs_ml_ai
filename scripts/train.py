@@ -37,6 +37,7 @@ def main():
     # Parse CLI args
     parser = argparse.ArgumentParser(description="Train the DCS ML AI agent.")
     parser.add_argument("--record-video", action="store_true", help="Enable video recording")
+    parser.add_argument("--verbose", type=int, default=1, help="Verbosity level (0: silent, 1: info, 2: debug)")
     args = parser.parse_args()
 
     env_id = "LunarLanderContinuous-v3"
@@ -105,14 +106,14 @@ def main():
         name_prefix="ppo_checkpoint"
     ))
     
-    # Add custom metrics callback
-    callbacks.append(CustomMetricCallback())
+    # Add custom metrics callback with specified verbosity
+    callbacks.append(CustomMetricCallback(verbose=args.verbose))
 
     # Train model with proper hyperparameters for Lunar Lander
     model = PPO(
         "MlpPolicy",
         env,
-        verbose=1,
+        verbose=args.verbose,
         tensorboard_log=str(base_dir / "tensorboard_logs" / env_name),
         learning_rate=3e-4,
         n_steps=2048,
