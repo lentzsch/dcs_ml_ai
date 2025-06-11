@@ -7,13 +7,13 @@ from datetime import datetime
 
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv, VecMonitor
+from stable_baselines3.common.callbacks import EvalCallback, CheckpointCallback
 import gymnasium as gym
 
 from dcs_ml_ai.envs.wrappers import BasicEnvWrapper
 from scripts.save_last_session import save_last_session
 
 def clean_video_dir(video_dir):
-    """Delete all files in the specified video directory."""
     if os.path.exists(video_dir):
         for f in os.listdir(video_dir):
             file_path = os.path.join(video_dir, f)
@@ -21,7 +21,6 @@ def clean_video_dir(video_dir):
                 os.remove(file_path)
 
 def make_env(env_id, video_folder=None, record_video=False):
-    """Factory function to initialize the environment with optional video recording."""
     def _init():
         env = BasicEnvWrapper(env_id, render_mode="rgb_array" if record_video else None, continuous=True)
         if record_video:
@@ -39,17 +38,49 @@ def main():
     env_id = "LunarLanderContinuous-v3"
     env_name = env_id.split("-")[0].lower()
     video_folder = os.path.join("videos", env_name)
+    model_dir = os.path.join("models", env_name)
+    best_model_dir = os.path.join(model_dir, "best_model")
+    checkpoint_dir = os.path.join(model_dir, "checkpoints")
 
-    # Prepare video folder if recording is enabled
+    # Initialize environment directly first to check action space
+    base_env = gym.make(env_id, render_mode="rgb_array" if args.record_video else None, continuous=True)
+    print(f"Action space: {base_env.action_space}")
+    print(f"Action space low: {base_env.action_space.low}")
+    print(f"Action space high: {base_env.action_space.high}")
+    base_env.close()
+
     if args.record_video:
         os.makedirs(video_folder, exist_ok=True)
         clean_video_dir(video_folder)
 
-    # Wrap the environment using DummyVecEnv for compatibility with SB3
-    env = DummyVecEnv([make_env(env_id, video_folder, args.record_video)])
-    env = VecMonitor(env)  # Monitor for tracking reward and episode length
+    os.makedirs(best_model_dir, exist_ok=True)
+    os.makedirs(checkpoint_dir, exist_ok=True)
 
-    # Initialize PPO model with recommended hyperparameters
+    # Create vectorized training environment
+    env = DummyVecEnv([make_env(env_id, video_folder, args.record_video)])
+    env = VecMonitor(env)
+
+    # Create evaluation environment
+    eval_env = DummyVecEnv([make_env(env_id)])
+    eval_env = VecMonitor(eval_env)
+
+    # Callbacks for saving the best model and periodic checkpoints
+    eval_callback = EvalCallback(
+        eval_env,
+        best_model_save_path=best_model_dir,
+        log_path=os.path.join(best_model_dir, "eval_logs"),
+        eval_freq=10_000,
+        deterministic=True,
+        render=False
+    )
+
+    checkpoint_callback = CheckpointCallback(
+        save_freq=100_000,
+        save_path=checkpoint_dir,
+        name_prefix="ppo_checkpoint"
+    )
+
+    # Train model with proper hyperparameters for Lunar Lander
     model = PPO(
         "MlpPolicy",
         env,
@@ -65,16 +96,16 @@ def main():
         ent_coef=0.01
     )
 
-    # Run training
     try:
-        model.learn(total_timesteps=10_000)
+        model.learn(total_timesteps=500_000, callback=[eval_callback, checkpoint_callback])
     finally:
         env.close()
+        eval_env.close()
         model.save(f"ppo_{env_name}")
 
     print("\nTraining complete.")
 
-    # Optionally save videos from this session
+    # Prompt to save videos
     if args.record_video:
         save = input("Save this training session's videos? (y/n): ").lower()
         if save == 'y':
