@@ -26,6 +26,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from typing import Dict, List, Optional
+from datetime import datetime
 
 class CustomMetricCallback(BaseCallback):
     """
@@ -43,7 +44,7 @@ class CustomMetricCallback(BaseCallback):
     - Navigation accuracy
     - Mission completion rate
     """
-    def __init__(self, verbose: int = 0):
+    def __init__(self, verbose: int = 0, run_id: Optional[str] = None):
         super().__init__(verbose)
         # Initialize metric storage
         self.metrics: Dict[str, List[float]] = {
@@ -53,6 +54,9 @@ class CustomMetricCallback(BaseCallback):
         }
         # Track total steps for potential future per-step logging
         self.total_steps = 0
+        
+        # Set run ID for tracking training sessions
+        self.run_id = run_id or datetime.now().strftime("%Y%m%d_%H%M%S")
         
     def _on_step(self) -> bool:
         """
@@ -112,19 +116,31 @@ class CustomMetricCallback(BaseCallback):
                 min_val = np.min(values_array)
                 max_val = np.max(values_array)
                 
-                # Log to tensorboard using record_mean for better aggregation
-                self.logger.record_mean(f"custom/{metric_name}/mean", mean_val)
-                self.logger.record_mean(f"custom/{metric_name}/std", std_val)
-                self.logger.record_mean(f"custom/{metric_name}/min", min_val)
-                self.logger.record_mean(f"custom/{metric_name}/max", max_val)
+                # Log to tensorboard (using record since these are already aggregated)
+                self.logger.record(f"custom/{metric_name}/mean", mean_val)
+                self.logger.record(f"custom/{metric_name}/std", std_val)
+                self.logger.record(f"custom/{metric_name}/min", min_val)
+                self.logger.record(f"custom/{metric_name}/max", max_val)
                 
                 if self.verbose > 1:
                     print(f"{metric_name} stats - Mean: {mean_val:.3f}, Std: {std_val:.3f}, "
                           f"Min: {min_val:.3f}, Max: {max_val:.3f}")
         
+        # Ensure all metrics are flushed to TensorBoard
+        self.logger.dump(self.num_timesteps)
+        
         # Reset metrics for next rollout
         for key in self.metrics:
             self.metrics[key] = []
+
+    def _on_training_end(self) -> None:
+        """
+        Called at the end of training.
+        Saves final metrics to CSV files.
+        """
+        if self.verbose > 0:
+            print(f"\nSaving final metrics for run {self.run_id}...")
+        self.save_metrics_to_csv()
 
     def save_metrics_to_csv(self, save_dir: Optional[str] = None) -> None:
         """
@@ -136,12 +152,12 @@ class CustomMetricCallback(BaseCallback):
         if save_dir is None:
             save_dir = "metrics"
         
-        # Create save directory if it doesn't exist
-        save_path = Path(save_dir)
+        # Create save directory with run ID
+        save_path = Path(save_dir) / self.run_id
         save_path.mkdir(parents=True, exist_ok=True)
         
-        # Create timestamp for unique filenames
-        timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
+        if self.verbose > 0:
+            print(f"Saving metrics to {save_path}")
         
         # Save individual metrics
         for metric_name, values in self.metrics.items():
@@ -150,8 +166,10 @@ class CustomMetricCallback(BaseCallback):
                     'step': range(len(values)),
                     metric_name: values
                 })
-                filename = save_path / f"{metric_name}_{timestamp}.csv"
+                filename = save_path / f"{metric_name}.csv"
                 df.to_csv(filename, index=False)
+                if self.verbose > 0:
+                    print(f"Saved {metric_name} data to {filename}")
         
         # Save summary statistics
         summary_data = {}
@@ -167,5 +185,7 @@ class CustomMetricCallback(BaseCallback):
         
         if summary_data:
             df_summary = pd.DataFrame(summary_data).T
-            filename = save_path / f"metrics_summary_{timestamp}.csv"
-            df_summary.to_csv(filename) 
+            filename = save_path / "metrics_summary.csv"
+            df_summary.to_csv(filename)
+            if self.verbose > 0:
+                print(f"Saved summary statistics to {filename}") 
