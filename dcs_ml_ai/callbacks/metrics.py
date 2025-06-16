@@ -27,6 +27,7 @@ import pandas as pd
 from pathlib import Path
 from typing import Dict, List, Optional
 from datetime import datetime
+from dcs_ml_ai.utils import unwrap_env
 
 class CustomMetricCallback(BaseCallback):
     """
@@ -67,35 +68,34 @@ class CustomMetricCallback(BaseCallback):
         
         # Check if any environment in the vector has completed an episode
         if any(self.locals.get("dones", [])):
-            try:
-                # Get thrust data
-                thrust = self.training_env.get_attr("thrust")[0]
-                if thrust is not None:
-                    self.metrics['thrust_usage'].append(float(thrust))
-                    self.logger.record(f"custom/thrust_usage/episode", float(thrust))
-            except (AttributeError, IndexError) as e:
-                if self.verbose > 0:
-                    print(f"Warning: Could not get thrust data: {e}")
+            # Get the core environment by unwrapping all layers
+            core_env = unwrap_env(self.training_env)
             
-            try:
-                # Get fuel efficiency data
-                fuel = self.training_env.get_attr("fuel")[0]
-                if fuel is not None:
-                    self.metrics['fuel_efficiency'].append(float(fuel))
-                    self.logger.record(f"custom/fuel_efficiency/episode", float(fuel))
-            except (AttributeError, IndexError) as e:
-                if self.verbose > 0:
-                    print(f"Warning: Could not get fuel data: {e}")
+            # Safely get metrics using getattr with None as default
+            thrust = getattr(core_env, "thrust", None)
+            fuel = getattr(core_env, "fuel", None)
+            landing_status = getattr(core_env, "landing_status", None)
             
-            try:
-                # Get landing quality data
-                landing_status = self.training_env.get_attr("landing_status")[0]
-                if landing_status is not None:
-                    self.metrics['landing_quality'].append(float(landing_status))
-                    self.logger.record(f"custom/landing_quality/episode", float(landing_status))
-            except (AttributeError, IndexError) as e:
-                if self.verbose > 0:
-                    print(f"Warning: Could not get landing status data: {e}")
+            # Process thrust data
+            if thrust is not None:
+                self.metrics['thrust_usage'].append(float(thrust))
+                self.logger.record("custom/thrust_usage/episode", float(thrust))
+            elif self.verbose > 0:
+                print("Warning: Could not get thrust data from environment")
+            
+            # Process fuel data
+            if fuel is not None:
+                self.metrics['fuel_efficiency'].append(float(fuel))
+                self.logger.record("custom/fuel_efficiency/episode", float(fuel))
+            elif self.verbose > 0:
+                print("Warning: Could not get fuel data from environment")
+            
+            # Process landing data
+            if landing_status is not None:
+                self.metrics['landing_quality'].append(float(landing_status))
+                self.logger.record("custom/landing_quality/episode", float(landing_status))
+            elif self.verbose > 0:
+                print("Warning: Could not get landing status data from environment")
         
         return True
 

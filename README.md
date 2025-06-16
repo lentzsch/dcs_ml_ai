@@ -11,13 +11,17 @@ An experimental project using reinforcement learning to train a human-like AI pi
 
 ## Training Gameplan
 
-### 🛫 Phase 1: Low-Fidelity Environment Bootstrapping
-- Begin training in simplified environments (e.g., `CartPole-v1`) to validate model architecture and integration.
-- Develop progressively more complex environments that simulate basic flight mechanics and dogfight decision trees (e.g., Unity-based or custom Gym environments).
-- Eventually create an open-ended gym-compatible flight simulation capable of supporting DCS-like scenarios.
+### 🛫 Phase 1: Low-Fidelity Environment Bootstrapping *(In Progress)*
+- ✅ Training pipeline validated using `LunarLanderContinuous-v2` as a stand-in for basic flight dynamics.
+- ✅ PPO-based agent achieving safe landings in some training runs.
+- ✅ Video recording integrated via `RecordVideo`.
+- ✅ Model checkpointing and final model saving in place.
+- ✅ Custom metrics callback implemented (placeholder phase) to support domain-specific tracking.
+- 🔧 Environment unwrapping utility added to support robust metric extraction from wrapped Gym environments.
+- 🔜 Next: Design a lightweight 2D pitch/thrust environment as a better approximation of aircraft flight.
 
 ### 🧠 Phase 2: Curriculum Learning & Domain Transfer
-- Train agents in a curriculum: starting with takeoff, then navigation, formation flying, and basic air combat maneuvers.
+- Train agents in a curriculum: takeoff → navigation → formation flying → basic air combat maneuvers.
 - Use domain transfer to scale from low-fidelity trainers (like a Cessna or T-6) to high-fidelity aircraft approximations.
 
 ### 🛰️ Phase 3: TacView Integration
@@ -44,13 +48,17 @@ An experimental project using reinforcement learning to train a human-like AI pi
 
 ## Features
 
-- Automatic video recording of training episodes
-- Manual or automatic saving of training sessions
-- Session tagging and archival with timestamped logs
-- Optional video visualization toggle to preserve storage during long sessions
-- Planned support for TacView-compatible telemetry export
+- ✅ Automatic video recording of training episodes
+- ✅ Manual and automatic saving of training sessions, with timestamped run directories
+- ✅ Custom `FinalModelCallback` for consistent model archival
+- ✅ `CustomMetricCallback` with placeholders for domain-specific metrics (thrust, fuel efficiency, landing quality)
+- ✅ Run ID tagging for training sessions
+- ✅ TensorBoard logging for core and custom metrics
+- ✅ Environment unwrapping utility for safe metric extraction from wrapped environments
+- ✅ Optional video toggle to conserve storage
+- 🔜 Planned support for TacView-compatible telemetry export
 
 ## Status
 
-🚧 In early development. Currently validating training pipeline and setting up visualization tools.
-
+🚀 Actively developing Phase 1.
+Current focus: collecting architecture feedback, refining metrics, and preparing to move toward a custom 2D flight simulation environment.
