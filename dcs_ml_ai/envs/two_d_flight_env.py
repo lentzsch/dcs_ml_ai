@@ -333,17 +333,19 @@ class TwoDFlightEnv(gym.Env):
         # Add a dummy line for aircraft marker legend (since patches don't show in legend easily)
         self.ax.plot([], [], 'r-', linewidth=4, alpha=0.8, label='Aircraft (arrow shows pitch)')
         
-        # Add legend
-        self.ax.legend(loc='upper left', fontsize=10)
+        # Add compact legend in upper left
+        self.ax.legend(loc='upper left', fontsize=8, framealpha=0.8)
         
-        # Initialize text displays for telemetry
-        self.telemetry_text = self.ax.text(0.02, 0.98, '', transform=self.ax.transAxes, 
-                                         fontsize=11, verticalalignment='top',
-                                         bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+                # Initialize text displays for telemetry - repositioned to avoid overlap
+        # Telemetry info in upper right corner
+        self.telemetry_text = self.ax.text(0.98, 0.98, '', transform=self.ax.transAxes, 
+                                         fontsize=10, verticalalignment='top', horizontalalignment='right',
+                                         bbox=dict(boxstyle='round', facecolor='white', alpha=0.9))
         
-        self.energy_text = self.ax.text(0.02, 0.75, '', transform=self.ax.transAxes,
-                                      fontsize=10, verticalalignment='top',
-                                      bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.8))
+        # Energy state info in lower left corner
+        self.energy_text = self.ax.text(0.02, 0.02, '', transform=self.ax.transAxes,
+                                       fontsize=9, verticalalignment='bottom', horizontalalignment='left',
+                                       bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.9))
         
         plt.tight_layout()
         self.visualization_initialized = True
@@ -412,19 +414,19 @@ class TwoDFlightEnv(gym.Env):
         pitch_end_y = nose_y + vector_length * np.sin(self.pitch)
         self.pitch_vector.set_data([nose_x, pitch_end_x], [nose_y, pitch_end_y])
         
-        # Update telemetry display
+        # Update telemetry display - compact format
         telemetry_info = (
             f"Time: {current_time:.1f}s\n"
-            f"Altitude: {self.altitude:.0f} ft\n"
-            f"Airspeed: {self.airspeed:.1f} kts\n"
+            f"Alt: {self.altitude:.0f} ft\n"
+            f"Speed: {self.airspeed:.0f} kts\n"
             f"Target: {self.target_airspeed:.0f} kts\n"
-            f"Error: {abs(self.airspeed - self.target_airspeed):.1f} kts\n"
-            f"Pitch: {np.degrees(self.pitch):+.1f}°\n"
-            f"Pitch Rate: {np.degrees(self.pitch_rate):+.1f}°/s\n"
-            f"Vertical Speed: {self.vertical_speed:+.0f} ft/s\n"
-            f"Fuel: {self.fuel:.1%}\n"
-            f"Throttle: {self.throttle:.1%}\n"
-            f"Elevator: {self.elevator:+.2f}"
+            f"Error: {abs(self.airspeed - self.target_airspeed):.0f} kts\n"
+            f"Pitch: {np.degrees(self.pitch):+.0f}°\n"
+            f"Rate: {np.degrees(self.pitch_rate):+.0f}°/s\n"
+            f"V/S: {self.vertical_speed:+.0f} ft/s\n"
+            f"Fuel: {self.fuel:.0%}\n"
+            f"Throttle: {self.throttle:.0%}\n"
+            f"Elevator: {self.elevator:+.1f}"
         )
         self.telemetry_text.set_text(telemetry_info)
         
@@ -435,10 +437,10 @@ class TwoDFlightEnv(gym.Env):
         
         energy_info = (
             f"ENERGY STATE\n"
-            f"Kinetic: {kinetic_energy/1e6:.1f}M ft-lbf\n"
-            f"Potential: {potential_energy/1e6:.1f}M ft-lbf\n"
-            f"Total: {total_energy/1e6:.1f}M ft-lbf\n"
-            f"Efficiency: {self.fuel:.1%}"
+            f"Kinetic: {kinetic_energy/1e6:.0f}M ft-lbf\n"
+            f"Potential: {potential_energy/1e6:.0f}M ft-lbf\n"
+            f"Total: {total_energy/1e6:.0f}M ft-lbf\n"
+            f"Efficiency: {self.fuel:.0%}"
         )
         self.energy_text.set_text(energy_info)
         
