@@ -18,7 +18,11 @@ An experimental project using reinforcement learning to train a human-like AI pi
 - ✅ Model checkpointing and final model saving in place.
 - ✅ Custom metrics callback implemented (placeholder phase) to support domain-specific tracking.
 - 🔧 Environment unwrapping utility added to support robust metric extraction from wrapped Gym environments.
-- 🔜 Next: Design a lightweight 2D pitch/thrust environment as a better approximation of aircraft flight.
+- ✅ Custom 2D Flight Environment implemented with energy management fundamentals (pitch/throttle control).
+- ✅ Comprehensive training pipeline with logging, evaluation, and checkpointing for `TwoDFlightEnv`.
+- ✅ Real-time matplotlib visualization with aircraft markers, pitch vectors, and flight path trails.
+- ✅ TacView-compatible telemetry logging system with CSV and basic ACMI export capabilities.
+- 🔜 Next: Begin curriculum learning with takeoff and basic flight maneuvers.
 
 ### 🧠 Phase 2: Curriculum Learning & Domain Transfer
 - Train agents in a curriculum: takeoff → navigation → formation flying → basic air combat maneuvers.
@@ -40,6 +44,7 @@ An experimental project using reinforcement learning to train a human-like AI pi
 - **Gymnasium** – Environment API and wrappers
 - **Stable-Baselines3** – RL algorithm library (using PPO)
 - **PyTorch** – Neural network backend
+- **Matplotlib** – Real-time flight visualization and telemetry display
 - **MoviePy** – Training visualization (turnkey video export)
 - **TensorBoard** – Metrics logging and performance visualization
 - **Poetry** – Dependency and environment management
@@ -56,9 +61,13 @@ An experimental project using reinforcement learning to train a human-like AI pi
 - ✅ TensorBoard logging for core and custom metrics
 - ✅ Environment unwrapping utility for safe metric extraction from wrapped environments
 - ✅ Optional video toggle to conserve storage
-- 🔜 Planned support for TacView-compatible telemetry export
+- ✅ Real-time matplotlib visualization with aircraft position tracking and flight path trails
+- ✅ Comprehensive telemetry logging with CSV export and basic TacView ACMI format support
+- ✅ Energy state visualization showing kinetic/potential energy management in real-time
+- 🔜 Enhanced TacView integration for full ACMI replay compatibility
 
 ## Status
 
 🚀 Actively developing Phase 1.
 Current focus: collecting architecture feedback, refining metrics, and preparing to move toward a custom 2D flight simulation environment.
+
