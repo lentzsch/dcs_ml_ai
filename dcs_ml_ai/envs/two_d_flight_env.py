@@ -315,20 +315,23 @@ class TwoDFlightEnv(gym.Env):
         self.ax.set_ylabel('Altitude (feet)', fontsize=12)
         self.ax.grid(True, alpha=0.3)
         
-        # Initialize aircraft marker (triangle pointing in pitch direction)
-        self.aircraft_marker = self.ax.scatter([], [], s=200, c='red', marker='^', 
-                                             edgecolor='black', linewidth=2, zorder=10)
+        # Initialize aircraft marker (arrow that will point in pitch direction)
+        self.aircraft_triangle = None  # Will be created as a FancyArrowPatch
+        self.aircraft_center = None    # Will be created as a Circle patch
         
         # Initialize trail line
         self.trail_line, = self.ax.plot([], [], 'b-', alpha=0.6, linewidth=2, label='Flight Path')
         
-        # Initialize pitch vector line
+        # Initialize pitch vector line (red line showing pitch direction)
         self.pitch_vector, = self.ax.plot([], [], 'r-', linewidth=3, alpha=0.8, label='Pitch Vector')
         
         # Initialize target altitude line
         target_alt = 5000  # Reference altitude
         self.ax.axhline(y=target_alt, color='green', linestyle='--', alpha=0.7, 
                        label=f'Reference Alt ({target_alt} ft)')
+        
+        # Add a dummy line for aircraft marker legend (since patches don't show in legend easily)
+        self.ax.plot([], [], 'r-', linewidth=4, alpha=0.8, label='Aircraft (arrow shows pitch)')
         
         # Add legend
         self.ax.legend(loc='upper left', fontsize=10)
@@ -356,8 +359,40 @@ class TwoDFlightEnv(gym.Env):
         aircraft_x = current_time
         aircraft_y = self.altitude
         
-        # Update aircraft marker position
-        self.aircraft_marker.set_offsets([[aircraft_x, aircraft_y]])
+        # AGGRESSIVE CLEANUP: Remove ALL patches to eliminate any lingering distorted triangles
+        # We'll recreate only the patches we want (arrow and center dot)
+        patches_to_remove = list(self.ax.patches)  # Copy the list since we'll modify it
+        for patch in patches_to_remove:
+            patch.remove()
+        
+        # Clear our references since we removed everything
+        self.aircraft_triangle = None
+        self.aircraft_center = None
+        
+        # RESTORE arrow (FancyArrowPatch) - this was NOT the culprit
+        # Use an arrow that automatically points in the pitch direction
+        arrow_length = 1.5  # seconds (length on time axis)
+        arrow_height = 100  # feet (height on altitude axis)
+        
+        # Calculate arrow end point based on pitch
+        arrow_end_x = aircraft_x + arrow_length * np.cos(self.pitch)
+        arrow_end_y = aircraft_y + arrow_height * np.sin(self.pitch)
+        
+        # Create directional arrow from center to nose direction
+        self.aircraft_triangle = patches.FancyArrowPatch(
+            (aircraft_x, aircraft_y),
+            (arrow_end_x, arrow_end_y),
+            arrowstyle='->',
+            mutation_scale=20,
+            color='red',
+            linewidth=3,
+            alpha=0.8,
+            zorder=10
+        )
+        self.ax.add_patch(self.aircraft_triangle)
+        
+        # KEEP center dot DISABLED - this was the culprit causing the distorted shape
+        # The Circle patch was getting stretched due to coordinate scaling differences
         
         # Update flight path trail
         if len(self.position_history) > 1:
@@ -365,11 +400,17 @@ class TwoDFlightEnv(gym.Env):
             altitudes = [pos[1] for pos in self.position_history]
             self.trail_line.set_data(times, altitudes)
         
-        # Update pitch vector (shows aircraft orientation)
-        vector_length = 500  # feet
-        pitch_end_x = aircraft_x + vector_length * np.cos(self.pitch) / 100  # Scale for visibility
-        pitch_end_y = aircraft_y + vector_length * np.sin(self.pitch)
-        self.pitch_vector.set_data([aircraft_x, pitch_end_x], [aircraft_y, pitch_end_y])
+        # RESTORE pitch vector line - this was NOT the culprit
+        # Update pitch vector (extends from aircraft arrow tip)
+        nose_x = arrow_end_x
+        nose_y = arrow_end_y
+        
+        # Extend vector from arrow tip
+        vector_length = 150  # feet
+        vector_time_scale = 1.5  # seconds (keep vector visible on time axis)
+        pitch_end_x = nose_x + vector_time_scale * np.cos(self.pitch)
+        pitch_end_y = nose_y + vector_length * np.sin(self.pitch)
+        self.pitch_vector.set_data([nose_x, pitch_end_x], [nose_y, pitch_end_y])
         
         # Update telemetry display
         telemetry_info = (
