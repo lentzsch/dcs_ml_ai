@@ -22,6 +22,7 @@ An experimental project using reinforcement learning to train a human-like AI pi
 - ✅ Comprehensive training pipeline with logging, evaluation, and checkpointing for `TwoDFlightEnv`.
 - ✅ Real-time matplotlib visualization with aircraft markers, pitch vectors, and flight path trails.
 - ✅ TacView-compatible telemetry logging system with CSV and basic ACMI export capabilities.
+- ✅ Video recording system with dynamic frame capture for training analysis and noteworthy episode saving.
 - 🔜 Next: Begin curriculum learning with takeoff and basic flight maneuvers.
 
 ### 🧠 Phase 2: Curriculum Learning & Domain Transfer
@@ -45,7 +46,7 @@ An experimental project using reinforcement learning to train a human-like AI pi
 - **Stable-Baselines3** – RL algorithm library (using PPO)
 - **PyTorch** – Neural network backend
 - **Matplotlib** – Real-time flight visualization and telemetry display
-- **MoviePy** – Training visualization (turnkey video export)
+- **OpenCV** – Video encoding and frame capture for training analysis
 - **TensorBoard** – Metrics logging and performance visualization
 - **Poetry** – Dependency and environment management
 - **TacView** (Planned) – Flight telemetry recording and visualization
@@ -64,10 +65,11 @@ An experimental project using reinforcement learning to train a human-like AI pi
 - ✅ Real-time matplotlib visualization with aircraft position tracking and flight path trails
 - ✅ Comprehensive telemetry logging with CSV export and basic TacView ACMI format support
 - ✅ Energy state visualization showing kinetic/potential energy management in real-time
+- ✅ Advanced video recording system with AVI format, 30fps capture, and noteworthy episode detection
 - 🔜 Enhanced TacView integration for full ACMI replay compatibility
 
 ## Status
 
 🚀 Actively developing Phase 1.
-Current focus: collecting architecture feedback, refining metrics, and preparing to move toward a custom 2D flight simulation environment.
+Current focus: 2D flight environment with video recording capabilities complete. Ready to begin curriculum learning with takeoff and basic flight maneuvers.
 

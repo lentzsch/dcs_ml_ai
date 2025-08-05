@@ -25,7 +25,9 @@ class TwoDFlightEnv(gym.Env):
         max_altitude: float = 10000.0,   # feet
         max_time_steps: int = 1000,
         fuel_penalty_factor: float = 0.1,
-        render_mode: Optional[str] = None
+        render_mode: Optional[str] = None,
+        record_video: bool = False,
+        video_dir: str = "videos/2d_flight"
     ):
         super().__init__()
         
@@ -106,6 +108,13 @@ class TwoDFlightEnv(gym.Env):
         self.pitch_history = deque(maxlen=50)     # Trail of recent pitch angles
         self.time_history = deque(maxlen=50)      # Time stamps for trail
         self.visualization_initialized = False
+        
+        # Video recording state
+        self.record_video = record_video
+        self.video_dir = video_dir
+        self.video_frames = []
+        self.episode_count = 0
+        self.session_id = None
     
     def reset(self, seed: Optional[int] = None, options: Optional[Dict] = None) -> Tuple[np.ndarray, Dict]:
         """Reset the environment to initial state"""
@@ -128,6 +137,10 @@ class TwoDFlightEnv(gym.Env):
         self.time_step = 0
         self.terminated = False
         self.truncated = False
+        
+        # Initialize video recording for new episode
+        if self.record_video:
+            self._initialize_video_recording()
         
         return self._get_observation(), self._get_info()
     
@@ -157,6 +170,10 @@ class TwoDFlightEnv(gym.Env):
         
         # Check termination conditions
         self._check_termination()
+        
+        # Save video frame if recording
+        if self.record_video:
+            self._save_video_frame()
         
         return self._get_observation(), reward, self.terminated, self.truncated, self._get_info()
     
@@ -462,18 +479,22 @@ class TwoDFlightEnv(gym.Env):
                            fontsize=20, color='orange', weight='bold', ha='center')
         
         plt.draw()
-        plt.pause(0.01)  # Small pause for animation
+        if self.render_mode != "rgb_array":
+            plt.pause(0.01)  # Small pause for animation (only for human viewing)
     
     def _render_rgb_array(self):
         """Render to RGB array for video recording"""
-        if not self.visualization_initialized:
-            self._initialize_visualization()
+        # Force recreation of the visualization for video recording
+        self.visualization_initialized = False
+        self._initialize_visualization()
         
+        # Force a complete redraw of the matplotlib figure
         self._render_matplotlib()
         
-        # Convert plot to RGB array
+        # Ensure the figure is fully updated
         self.fig.canvas.draw()
-        # Use the correct method for modern matplotlib
+        
+        # Get the buffer immediately after drawing
         try:
             buf = np.frombuffer(self.fig.canvas.tostring_rgb(), dtype=np.uint8)
         except AttributeError:
@@ -485,6 +506,79 @@ class TwoDFlightEnv(gym.Env):
         
         buf = buf.reshape(self.fig.canvas.get_width_height()[::-1] + (3,))
         return buf
+    
+    def _initialize_video_recording(self):
+        """Initialize video recording for a new episode"""
+        import os
+        from datetime import datetime
+        
+        # Create video directory if it doesn't exist
+        os.makedirs(self.video_dir, exist_ok=True)
+        
+        # Generate session ID if not already set
+        if self.session_id is None:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            self.session_id = f"2d_flight_{timestamp}"
+        
+        # Reset frame buffer for new episode
+        self.video_frames = []
+        self.episode_count += 1
+        
+        print(f"🎬 Starting video recording for episode {self.episode_count}")
+    
+    def _save_video_frame(self):
+        """Save current frame to video buffer"""
+        if self.render_mode == "rgb_array":
+            frame = self.render()
+            if frame is not None:
+                self.video_frames.append(frame)
+    
+    def _save_video_file(self, episode_info: str = ""):
+        """Save recorded frames as video file"""
+        if not self.video_frames:
+            return
+        
+        import os
+        import cv2
+        from datetime import datetime
+        
+        # Create filename with episode info
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"episode_{self.episode_count:03d}_{timestamp}"
+        if episode_info:
+            filename += f"_{episode_info}"
+        filename += ".avi"
+        
+        filepath = os.path.join(self.video_dir, filename)
+        
+        # Get frame dimensions
+        height, width = self.video_frames[0].shape[:2]
+        
+        # Create video writer with higher frame rate and different codec
+        fourcc = cv2.VideoWriter_fourcc(*'XVID')  # More compatible codec
+        out = cv2.VideoWriter(filepath, fourcc, 30.0, (width, height))  # Higher frame rate
+        
+        # Write frames
+        for frame in self.video_frames:
+            # Convert RGB to BGR for OpenCV
+            frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+            out.write(frame_bgr)
+        
+        out.release()
+        print(f"🎬 Video saved: {filepath}")
+        print(f"   Frames: {len(self.video_frames)}, Duration: {len(self.video_frames)/30.0:.1f}s")
+    
+    def save_noteworthy_episode(self, episode_type: str = "noteworthy", episode_info: str = ""):
+        """Save current episode as a noteworthy video"""
+        if self.record_video and self.video_frames:
+            # Combine episode type and info for filename
+            info = f"{episode_type}"
+            if episode_info:
+                info += f"_{episode_info}"
+            
+            self._save_video_file(info)
+            return True
+        return False
     
     def close(self):
         """Close the environment and clean up matplotlib resources"""
